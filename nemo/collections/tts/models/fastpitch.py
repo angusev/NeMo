@@ -51,7 +51,7 @@ from nemo.utils import logging, model_utils
 
 @dataclass
 class G2PConfig:
-    _target_: str = "nemo_text_processing.g2p.modules.EnglishG2p"
+    _target_: str = "nemo.collections.tts.g2p.models.en_us_arpabet.EnglishG2p"
     phoneme_dict: str = "scripts/tts_dataset_files/cmudict-0.7b_nv22.10"
     heteronyms: str = "scripts/tts_dataset_files/heteronyms-052722"
     phoneme_probability: float = 0.5
@@ -528,7 +528,7 @@ class FastPitchModel(SpectrogramGenerator, Exportable):
         elif cfg.dataloader_params.shuffle:
             logging.error(f"The {name} dataloader for {self} has shuffle set to True!!!")
 
-        if cfg.dataset._target_ == "nemo.collections.tts.data.tts_dataset.TTSDataset":
+        if cfg.dataset._target_ == "nemo.collections.tts.data.dataset.TTSDataset":
             phon_mode = contextlib.nullcontext()
             if hasattr(self.vocab, "set_phone_prob"):
                 phon_mode = self.vocab.set_phone_prob(prob=None if name == "val" else self.vocab.phoneme_probability)
@@ -591,11 +591,20 @@ class FastPitchModel(SpectrogramGenerator, Exportable):
         )
         list_of_models.append(model)
 
-        # de-DE, single speaker, 22050 Hz, OpenSLR Neutral German Dataset.
+        # de-DE, single male speaker, grapheme-based tokenizer, 22050 Hz, Thorsten Müller’s German Neutral-TTS Dataset, 21.02
         model = PretrainedModelInfo(
-            pretrained_model_name="tts_de_fastpitch_singlespeaker",
-            location="https://api.ngc.nvidia.com/v2/models/nvidia/nemo/tts_de_fastpitchhifigan/versions/1.10.0/files/tts_de_fastpitch_align.nemo",
-            description="This model is trained on a single male speaker data in OpenSLR Neutral German Dataset sampled at 22050Hz and can be used to generate male German voices.",
+            pretrained_model_name="tts_de_fastpitch_singleSpeaker_thorstenNeutral_2102",
+            location="https://api.ngc.nvidia.com/v2/models/nvidia/nemo/tts_de_fastpitchhifigan/versions/1.15.0/files/tts_de_fastpitch_thorstens2102.nemo",
+            description="This model is trained on a single male speaker data in Thorsten Müller’s German Neutral 21.02 Dataset sampled at 22050Hz and can be used to generate male German voices.",
+            class_=cls,
+        )
+        list_of_models.append(model)
+
+        # de-DE, single male speaker, grapheme-based tokenizer, 22050 Hz, Thorsten Müller’s German Neutral-TTS Dataset, 22.10
+        model = PretrainedModelInfo(
+            pretrained_model_name="tts_de_fastpitch_singleSpeaker_thorstenNeutral_2210",
+            location="https://api.ngc.nvidia.com/v2/models/nvidia/nemo/tts_de_fastpitchhifigan/versions/1.15.0/files/tts_de_fastpitch_thorstens2210.nemo",
+            description="This model is trained on a single male speaker data in Thorsten Müller’s German Neutral 22.10 Dataset sampled at 22050Hz and can be used to generate male German voices.",
             class_=cls,
         )
         list_of_models.append(model)

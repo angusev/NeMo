@@ -122,7 +122,7 @@ model:
     # set to non-zero to enable stochastic depth
     stochastic_depth_drop_prob: 0.0
     stochastic_depth_mode: linear  # linear or uniform
-    stochastic_depth_start_layer: 0
+    stochastic_depth_start_layer: 1
 
   decoder:
     _target_: nemo.collections.asr.modules.ConvASRDecoder
@@ -155,7 +155,7 @@ model:
       # scheduler config override
       warmup_steps: 15000
       warmup_ratio: null
-      min_lr: 1e-6
+      min_lr: 1e-4
 
 trainer:
   devices: -1 # number of GPUs, -1 would use all available GPUs
