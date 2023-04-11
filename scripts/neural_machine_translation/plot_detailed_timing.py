@@ -22,6 +22,8 @@ import os
 import sys
 
 from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('Agg') 
 
 # =============================================================================#
 # Control Variables

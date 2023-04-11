@@ -17,6 +17,8 @@ from typing import List, Type, Union
 
 import librosa
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg') 
 import numpy as np
 import pytest
 import scipy

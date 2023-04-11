@@ -46,6 +46,9 @@ from argparse import ArgumentParser
 
 import editdistance
 import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use("Agg")
 import numpy as np
 import pandas as pd
 import torch
@@ -69,14 +72,16 @@ class BeamScoresDataset(torch.utils.data.Dataset):
         max_seq_length: the maximum length of sequences
     """
 
-    def __init__(self, data_path, tokenizer, manifest_path, beam_size=128, max_seq_length=256):
+    def __init__(
+        self, data_path, tokenizer, manifest_path, beam_size=128, max_seq_length=256
+    ):
         self.data = pd.read_csv(data_path, delimiter="\t", header=None)
         self.tokenizer = tokenizer
         self.ground_truths = []
-        with open(manifest_path, 'r', encoding='utf-8') as f_orig:
+        with open(manifest_path, "r", encoding="utf-8") as f_orig:
             for line in f_orig:
                 item = json.loads(line)
-                self.ground_truths.append(item['text'])
+                self.ground_truths.append(item["text"])
         self.beam_size = beam_size
         self.max_seq_length = max_seq_length
 
@@ -85,7 +90,9 @@ class BeamScoresDataset(torch.utils.data.Dataset):
         elif self.tokenizer.eos_id is not None:
             self.pad_id = self.tokenizer.eos_id
         else:
-            logging.warning(f"Using 0 as pad_id as the tokenizer has no pad_id or eos_id.")
+            logging.warning(
+                f"Using 0 as pad_id as the tokenizer has no pad_id or eos_id."
+            )
             self.pad_id = 0
 
     def __len__(self):
@@ -104,14 +111,22 @@ class BeamScoresDataset(torch.utils.data.Dataset):
         input_mask = np.zeros(self.max_seq_length)
         input_mask[: len(tokens)] = 1
         acoustic_score = self.data[1][idx]
-        dist = editdistance.eval(text.split(), self.ground_truths[idx // self.beam_size].split())
+        dist = editdistance.eval(
+            text.split(), self.ground_truths[idx // self.beam_size].split()
+        )
         ref_len = len(self.ground_truths[idx // self.beam_size].split())
         len_in_chars = len(str(self.data[0][idx]))
         return input_ids, input_mask, acoustic_score, dist, ref_len, len_in_chars, idx
 
 
 def linear_search_wer(
-    dists, scores1, scores2, total_len, coef_range=[0, 10], coef_steps=10000, param_name='parameter'
+    dists,
+    scores1,
+    scores2,
+    total_len,
+    coef_range=[0, 10],
+    coef_steps=10000,
+    param_name="parameter",
 ):
     """
     performs linear search to find the best coefficient when two set of scores are getting linearly fused.
@@ -145,8 +160,8 @@ def linear_search_wer(
             best_coef = coef
 
     plt.plot(coefs, wers)
-    plt.title(f'WER% after rescoring with different values of {param_name}')
-    plt.ylabel('WER%')
+    plt.title(f"WER% after rescoring with different values of {param_name}")
+    plt.ylabel("WER%")
     plt.xlabel(param_name)
     plt.show()
     return best_coef, best_wer
@@ -178,23 +193,48 @@ def main():
         required=True,
         help="path to LM model .nemo file or the name of a HuggingFace pretrained models like 'transfo-xl-wt103' or 'gpt2'",
     )
-    parser.add_argument("--beams_file", type=str, required=True, help="path to beams .tsv file")
     parser.add_argument(
-        "--eval_manifest", type=str, required=True, help="path to the evaluation `.json` manifest file"
-    )
-    parser.add_argument("--beam_size", type=int, required=True, help="number of beams per candidate")
-    parser.add_argument("--batch_size", type=int, default=256, help="inference batch size")
-    parser.add_argument("--alpha", type=float, default=None, help="parameter alpha of the fusion")
-    parser.add_argument("--beta", type=float, default=None, help="parameter beta of the fusion")
-    parser.add_argument("--max_seq_length", default=512, help="Maximum sequence length (in tokens) for the input")
-    parser.add_argument(
-        "--scores_output_file", default=None, type=str, help="The optional path to store the rescored beams"
+        "--beams_file", type=str, required=True, help="path to beams .tsv file"
     )
     parser.add_argument(
-        "--device", default="cuda", type=str, help="The device to load the model onto to calculate the scores"
+        "--eval_manifest",
+        type=str,
+        required=True,
+        help="path to the evaluation `.json` manifest file",
     )
     parser.add_argument(
-        "--use_amp", action="store_true", help="Whether to use AMP if available to calculate the scores"
+        "--beam_size", type=int, required=True, help="number of beams per candidate"
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=256, help="inference batch size"
+    )
+    parser.add_argument(
+        "--alpha", type=float, default=None, help="parameter alpha of the fusion"
+    )
+    parser.add_argument(
+        "--beta", type=float, default=None, help="parameter beta of the fusion"
+    )
+    parser.add_argument(
+        "--max_seq_length",
+        default=512,
+        help="Maximum sequence length (in tokens) for the input",
+    )
+    parser.add_argument(
+        "--scores_output_file",
+        default=None,
+        type=str,
+        help="The optional path to store the rescored beams",
+    )
+    parser.add_argument(
+        "--device",
+        default="cuda",
+        type=str,
+        help="The device to load the model onto to calculate the scores",
+    )
+    parser.add_argument(
+        "--use_amp",
+        action="store_true",
+        help="Whether to use AMP if available to calculate the scores",
     )
     args = parser.parse_args()
 
@@ -212,20 +252,36 @@ def main():
         model_tokenizer = model.tokenizer
     else:
         nemo_model = False
-        logging.info("Attempting to initialize from a pretrained model from HuggingFace...")
+        logging.info(
+            "Attempting to initialize from a pretrained model from HuggingFace..."
+        )
         model = (
-            AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=args.lm_model_file, is_decoder=True)
+            AutoModelForCausalLM.from_pretrained(
+                pretrained_model_name_or_path=args.lm_model_file, is_decoder=True
+            )
             .to(device)
             .eval()
         )
         model_tokenizer = get_tokenizer(tokenizer_name=args.lm_model_file)
 
     max_seq_length = args.max_seq_length
-    dataset = BeamScoresDataset(args.beams_file, model_tokenizer, args.eval_manifest, args.beam_size, max_seq_length)
-    data_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=args.batch_size)
+    dataset = BeamScoresDataset(
+        args.beams_file,
+        model_tokenizer,
+        args.eval_manifest,
+        args.beam_size,
+        max_seq_length,
+    )
+    data_loader = torch.utils.data.DataLoader(
+        dataset=dataset, batch_size=args.batch_size
+    )
 
     if args.use_amp:
-        if torch.cuda.is_available() and hasattr(torch.cuda, 'amp') and hasattr(torch.cuda.amp, 'autocast'):
+        if (
+            torch.cuda.is_available()
+            and hasattr(torch.cuda, "amp")
+            and hasattr(torch.cuda.amp, "autocast")
+        ):
             logging.info("AMP is enabled!\n")
             autocast = torch.cuda.amp.autocast
     else:
@@ -244,10 +300,21 @@ def main():
         with torch.no_grad():
             am_scores, lm_scores, dists, ref_lens, lens_in_chars = [], [], [], [], []
             for batch in tqdm.tqdm(data_loader):
-                input_ids, input_mask, acoustic_score, dist, ref_len, len_in_chars, idx = batch
+                (
+                    input_ids,
+                    input_mask,
+                    acoustic_score,
+                    dist,
+                    ref_len,
+                    len_in_chars,
+                    idx,
+                ) = batch
 
                 max_len_in_batch = input_mask.sum(dim=0).argmin().item()
-                input_ids, input_mask = input_ids[:, :max_len_in_batch], input_mask[:, :max_len_in_batch]
+                input_ids, input_mask = (
+                    input_ids[:, :max_len_in_batch],
+                    input_mask[:, :max_len_in_batch],
+                )
                 if torch.cuda.is_available():
                     input_ids, input_mask = input_ids.to(device), input_mask.to(device)
                     dist, acoustic_score, len_in_chars = (
@@ -262,10 +329,18 @@ def main():
                     log_probs = model(input_ids=input_ids)
 
                 if not nemo_model:
-                    log_probs = torch.nn.functional.log_softmax(log_probs.logits, dim=-1)
+                    log_probs = torch.nn.functional.log_softmax(
+                        log_probs.logits, dim=-1
+                    )
 
-                target_log_probs = log_probs[:, :-1].gather(2, input_ids[:, 1:].unsqueeze(2)).squeeze(2)
-                neural_lm_score = torch.sum(target_log_probs * input_mask[:, 1:], dim=-1)
+                target_log_probs = (
+                    log_probs[:, :-1]
+                    .gather(2, input_ids[:, 1:].unsqueeze(2))
+                    .squeeze(2)
+                )
+                neural_lm_score = torch.sum(
+                    target_log_probs * input_mask[:, 1:], dim=-1
+                )
 
                 am_scores.append(acoustic_score)
                 lm_scores.append(neural_lm_score)
@@ -277,7 +352,9 @@ def main():
     lm_scores = torch.cat(lm_scores).view(-1, args.beam_size)
     dists = torch.cat(dists).view(-1, args.beam_size)
     ref_lens = torch.cat(ref_lens).view(-1, args.beam_size)
-    lens_in_chars = torch.cat(lens_in_chars).view(-1, args.beam_size).to(am_scores.dtype)
+    lens_in_chars = (
+        torch.cat(lens_in_chars).view(-1, args.beam_size).to(am_scores.dtype)
+    )
 
     total_len = ref_lens[:, 0].sum()
     model_wer = dists[:, 0].sum() / total_len
@@ -286,7 +363,11 @@ def main():
     if args.alpha is None:
         logging.info("Linear search for alpha...")
         coef1, _ = linear_search_wer(
-            dists=dists, scores1=am_scores, scores2=lm_scores, total_len=total_len, param_name='alpha'
+            dists=dists,
+            scores1=am_scores,
+            scores2=lm_scores,
+            total_len=total_len,
+            param_name="alpha",
         )
         coef1 = np.round(coef1, 3)
         logging.info(f"alpha={coef1} achieved the best WER.")
@@ -299,7 +380,11 @@ def main():
     if args.beta is None:
         logging.info("Linear search for beta...")
         coef2, _ = linear_search_wer(
-            dists=dists, scores1=scores, scores2=lens_in_chars, total_len=total_len, param_name='beta'
+            dists=dists,
+            scores1=scores,
+            scores2=lens_in_chars,
+            total_len=total_len,
+            param_name="beta",
         )
         coef2 = np.round(coef2, 3)
         logging.info(f"beta={coef2} achieved the best WER.")
@@ -320,11 +405,15 @@ def main():
 
     new_scores_flatten = new_scores.flatten()
     if args.scores_output_file is not None:
-        logging.info(f'Saving the candidates with their new scores at `{args.scores_output_file}`...')
-        with open(args.scores_output_file, "w", encoding='utf-8') as fout:
+        logging.info(
+            f"Saving the candidates with their new scores at `{args.scores_output_file}`..."
+        )
+        with open(args.scores_output_file, "w", encoding="utf-8") as fout:
             for sample_id in range(len(dataset)):
-                fout.write(f"{dataset.data[0][sample_id]}\t{new_scores_flatten[sample_id]}\n")
+                fout.write(
+                    f"{dataset.data[0][sample_id]}\t{new_scores_flatten[sample_id]}\n"
+                )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

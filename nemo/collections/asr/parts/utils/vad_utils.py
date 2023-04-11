@@ -24,6 +24,8 @@ from typing import Dict, List, Optional, Tuple
 import IPython.display as ipd
 import librosa
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg') 
 import numpy as np
 import pandas as pd
 import torch
