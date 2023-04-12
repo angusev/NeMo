@@ -69,11 +69,11 @@ except (ImportError, ModuleNotFoundError):
 
 EPSILON = 1e-9
 WINDOW_FN_SUPPORTED = {
-    'hann': torch.hann_window,
-    'hamming': torch.hamming_window,
-    'blackman': torch.blackman_window,
-    'bartlett': torch.bartlett_window,
-    'none': None,
+    "hann": torch.hann_window,
+    "hamming": torch.hamming_window,
+    "blackman": torch.blackman_window,
+    "bartlett": torch.bartlett_window,
+    "none": None,
 }
 
 
@@ -188,10 +188,14 @@ class TTSDataset(Dataset):
             self.phoneme_probability = getattr(self.text_tokenizer, "phoneme_probability", None)
         else:
             if text_tokenizer_pad_id is None:
-                raise ValueError(f"text_tokenizer_pad_id must be specified if text_tokenizer is not BaseTokenizer")
+                raise ValueError(
+                    f"text_tokenizer_pad_id must be specified if text_tokenizer is not BaseTokenizer"
+                )
 
             if tokens is None:
-                raise ValueError(f"tokens must be specified if text_tokenizer is not BaseTokenizer")
+                raise ValueError(
+                    f"tokens must be specified if text_tokenizer is not BaseTokenizer"
+                )
 
             self.text_tokenizer_pad_id = text_tokenizer_pad_id
         self.cache_text = True if self.phoneme_probability is None else False
@@ -211,7 +215,9 @@ class TTSDataset(Dataset):
                 else self.text_normalizer
             )
         self.text_normalizer_call_kwargs = (
-            text_normalizer_call_kwargs if text_normalizer_call_kwargs is not None else {}
+            text_normalizer_call_kwargs
+            if text_normalizer_call_kwargs is not None
+            else {}
         )
 
         # Initialize and read manifest file(s), filter out data by duration and ignore_file, compute base dir
@@ -223,7 +229,7 @@ class TTSDataset(Dataset):
         data = []
         total_duration = 0
         for manifest_file in self.manifest_filepath:
-            with open(Path(manifest_file).expanduser(), 'r') as f:
+            with open(Path(manifest_file).expanduser(), "r") as f:
                 logging.info(f"Loading dataset from {manifest_file}.")
                 for line in tqdm(f):
                     item = json.loads(line)
@@ -231,7 +237,9 @@ class TTSDataset(Dataset):
                     file_info = {
                         "audio_filepath": item["audio_filepath"],
                         "original_text": item["text"],
-                        "mel_filepath": item["mel_filepath"] if "mel_filepath" in item else None,
+                        "mel_filepath": item["mel_filepath"]
+                        if "mel_filepath" in item
+                        else None,
                         "duration": item["duration"] if "duration" in item else None,
                         "speaker_id": item["speaker"] if "speaker" in item else None,
                     }
@@ -243,15 +251,21 @@ class TTSDataset(Dataset):
                     else:
                         text = item["text"]
                         if self.text_normalizer is not None:
-                            text = self.text_normalizer_call(text, **self.text_normalizer_call_kwargs)
+                            text = self.text_normalizer_call(
+                                text, **self.text_normalizer_call_kwargs
+                            )
                         file_info["normalized_text"] = text
 
                     if self.cache_text:
-                        file_info["text_tokens"] = self.text_tokenizer(file_info["normalized_text"])
+                        file_info["text_tokens"] = self.text_tokenizer(
+                            file_info["normalized_text"]
+                        )
 
                     data.append(file_info)
                     # Calculating length of spectrogram from input audio for batch sampling
-                    self.lengths.append(os.path.getsize(item["audio_filepath"]) // (n_fft // 2))
+                    self.lengths.append(
+                        os.path.getsize(item["audio_filepath"]) // (n_fft // 2)
+                    )
 
                     if file_info["duration"] is None:
                         logging.info(
@@ -266,8 +280,12 @@ class TTSDataset(Dataset):
         if total_duration is not None:
             logging.info(f"Dataset contains {total_duration / 3600:.2f} hours.")
 
-        self.data = TTSDataset.filter_files(data, ignore_file, min_duration, max_duration, total_duration)
-        self.base_data_dir = get_base_dir([item["audio_filepath"] for item in self.data])
+        self.data = TTSDataset.filter_files(
+            data, ignore_file, min_duration, max_duration, total_duration
+        )
+        self.base_data_dir = get_base_dir(
+            [item["audio_filepath"] for item in self.data]
+        )
 
         # Initialize audio and mel related parameters
         self.sample_rate = sample_rate
@@ -275,7 +293,9 @@ class TTSDataset(Dataset):
         self.trim = trim
         self.trim_ref = trim_ref if trim_ref is not None else np.max
         self.trim_top_db = trim_top_db if trim_top_db is not None else 60
-        self.trim_frame_length = trim_frame_length if trim_frame_length is not None else 2048
+        self.trim_frame_length = (
+            trim_frame_length if trim_frame_length is not None else 2048
+        )
         self.trim_hop_length = trim_hop_length if trim_hop_length is not None else 512
 
         self.segment_max_duration = segment_max_duration
@@ -292,7 +312,11 @@ class TTSDataset(Dataset):
         self.hop_len = self.hop_length or self.n_fft // 4
         self.fb = torch.tensor(
             librosa.filters.mel(
-                sr=self.sample_rate, n_fft=self.n_fft, n_mels=self.n_mels, fmin=self.lowfreq, fmax=self.highfreq
+                sr=self.sample_rate,
+                n_fft=self.n_fft,
+                n_mels=self.n_mels,
+                fmin=self.lowfreq,
+                fmax=self.highfreq,
             ),
             dtype=torch.float,
         ).unsqueeze(0)
@@ -310,7 +334,9 @@ class TTSDataset(Dataset):
             n_fft=self.n_fft,
             hop_length=self.hop_len,
             win_length=self.win_length,
-            window=window_fn(self.win_length, periodic=False).to(torch.float) if window_fn else None,
+            window=window_fn(self.win_length, periodic=False).to(torch.float)
+            if window_fn
+            else None,
             return_complex=True,
         )
 
@@ -325,11 +351,15 @@ class TTSDataset(Dataset):
                 try:
                     sup_data_type = DATA_STR2DATA_CLASS[d_as_str]
                 except KeyError:
-                    raise NotImplementedError(f"Current implementation doesn't support {d_as_str} type.")
+                    raise NotImplementedError(
+                        f"Current implementation doesn't support {d_as_str} type."
+                    )
 
                 self.sup_data_types.append(sup_data_type)
 
-            if ("voiced_mask" in sup_data_types or "p_voiced" in sup_data_types) and ("pitch" not in sup_data_types):
+            if ("voiced_mask" in sup_data_types or "p_voiced" in sup_data_types) and (
+                "pitch" not in sup_data_types
+            ):
                 raise ValueError(
                     "Please add 'pitch' to sup_data_types in YAML because 'pitch' is required when using either "
                     "'voiced_mask' or 'p_voiced' or both."
@@ -353,7 +383,7 @@ class TTSDataset(Dataset):
         pruned_duration = 0 if total_duration is not None else None
         pruned_items = 0
         for item in data:
-            audio_path = item['audio_filepath']
+            audio_path = item["audio_filepath"]
 
             # Prune data according to min/max_duration & the ignore file
             if total_duration is not None:
@@ -372,7 +402,9 @@ class TTSDataset(Dataset):
 
             filtered_data.append(item)
 
-        logging.info(f"Pruned {pruned_items} files. Final dataset contains {len(filtered_data)} files")
+        logging.info(
+            f"Pruned {pruned_items} files. Final dataset contains {len(filtered_data)} files"
+        )
         if pruned_duration is not None:
             logging.info(
                 f"Pruned {pruned_duration / 3600:.2f} hours. Final dataset contains "
@@ -382,7 +414,7 @@ class TTSDataset(Dataset):
         return filtered_data
 
     def add_log_mel(self, **kwargs):
-        self.log_mel_folder = kwargs.pop('log_mel_folder', None)
+        self.log_mel_folder = kwargs.pop("log_mel_folder", None)
 
         if self.log_mel_folder is None:
             self.log_mel_folder = Path(self.sup_data_path) / LogMel.name
@@ -392,8 +424,8 @@ class TTSDataset(Dataset):
         self.log_mel_folder.mkdir(exist_ok=True, parents=True)
 
     def add_durations(self, **kwargs):
-        durs_file = kwargs.pop('durs_file')
-        durs_type = kwargs.pop('durs_type')
+        durs_file = kwargs.pop("durs_file")
+        durs_type = kwargs.pop("durs_type")
 
         audio_stem2durs = torch.load(durs_file)
         self.durs = []
@@ -408,9 +440,14 @@ class TTSDataset(Dataset):
                 )
 
     def add_align_prior_matrix(self, **kwargs):
-        self.use_beta_binomial_interpolator = kwargs.pop('use_beta_binomial_interpolator', False)
+        self.use_beta_binomial_interpolator = kwargs.pop(
+            "use_beta_binomial_interpolator", False
+        )
         if not self.cache_text:
-            if 'use_beta_binomial_interpolator' in kwargs and not self.use_beta_binomial_interpolator:
+            if (
+                "use_beta_binomial_interpolator" in kwargs
+                and not self.use_beta_binomial_interpolator
+            ):
                 logging.warning(
                     "phoneme_probability is not None, but use_beta_binomial_interpolator=False, we"
                     " set use_beta_binomial_interpolator=True manually to use phoneme_probability."
@@ -421,7 +458,7 @@ class TTSDataset(Dataset):
             self.beta_binomial_interpolator = BetaBinomialInterpolator()
 
     def add_pitch(self, **kwargs):
-        self.pitch_folder = kwargs.pop('pitch_folder', None)
+        self.pitch_folder = kwargs.pop("pitch_folder", None)
 
         if self.pitch_folder is None:
             self.pitch_folder = Path(self.sup_data_path) / Pitch.name
@@ -430,8 +467,8 @@ class TTSDataset(Dataset):
 
         self.pitch_folder.mkdir(exist_ok=True, parents=True)
 
-        self.pitch_fmin = kwargs.pop("pitch_fmin", librosa.note_to_hz('C2'))
-        self.pitch_fmax = kwargs.pop("pitch_fmax", librosa.note_to_hz('C7'))
+        self.pitch_fmin = kwargs.pop("pitch_fmin", librosa.note_to_hz("C2"))
+        self.pitch_fmax = kwargs.pop("pitch_fmax", librosa.note_to_hz("C7"))
         self.pitch_mean = kwargs.pop("pitch_mean", None)
         self.pitch_std = kwargs.pop("pitch_std", None)
         self.pitch_norm = kwargs.pop("pitch_norm", False)
@@ -450,12 +487,12 @@ class TTSDataset(Dataset):
             )
 
         if pitch_stats_path is not None:
-            with open(Path(pitch_stats_path), 'r', encoding="utf-8") as pitch_f:
+            with open(Path(pitch_stats_path), "r", encoding="utf-8") as pitch_f:
                 self.pitch_stats = json.load(pitch_f)
 
     # saving voiced_mask and p_voiced with pitch
     def add_voiced_mask(self, **kwargs):
-        self.voiced_mask_folder = kwargs.pop('voiced_mask_folder', None)
+        self.voiced_mask_folder = kwargs.pop("voiced_mask_folder", None)
 
         if self.voiced_mask_folder is None:
             self.voiced_mask_folder = Path(self.sup_data_path) / Voiced_mask.name
@@ -463,7 +500,7 @@ class TTSDataset(Dataset):
         self.voiced_mask_folder.mkdir(exist_ok=True, parents=True)
 
     def add_p_voiced(self, **kwargs):
-        self.p_voiced_folder = kwargs.pop('p_voiced_folder', None)
+        self.p_voiced_folder = kwargs.pop("p_voiced_folder", None)
 
         if self.p_voiced_folder is None:
             self.p_voiced_folder = Path(self.sup_data_path) / P_voiced.name
@@ -471,7 +508,7 @@ class TTSDataset(Dataset):
         self.p_voiced_folder.mkdir(exist_ok=True, parents=True)
 
     def add_energy(self, **kwargs):
-        self.energy_folder = kwargs.pop('energy_folder', None)
+        self.energy_folder = kwargs.pop("energy_folder", None)
 
         if self.energy_folder is None:
             self.energy_folder = Path(self.sup_data_path) / Energy.name
@@ -499,7 +536,9 @@ class TTSDataset(Dataset):
         return log_mel
 
     def pitch_shift(self, audio, sr, rel_audio_path_as_text_id):
-        audio_shifted_path = Path(self.sup_data_path) / f"{rel_audio_path_as_text_id}_pitch_shift.pt"
+        audio_shifted_path = (
+            Path(self.sup_data_path) / f"{rel_audio_path_as_text_id}_pitch_shift.pt"
+        )
         if audio_shifted_path.exists() and self.cache_pitch_augment:
             audio_shifted = torch.load(audio_shifted_path)
             return audio_shifted
@@ -518,7 +557,13 @@ class TTSDataset(Dataset):
         if self.pad_multiple > 1:
             if wav.shape[0] % self.pad_multiple != 0:
                 wav = torch.cat(
-                    [wav, torch.zeros(self.pad_multiple - wav.shape[0] % self.pad_multiple, dtype=torch.float)]
+                    [
+                        wav,
+                        torch.zeros(
+                            self.pad_multiple - wav.shape[0] % self.pad_multiple,
+                            dtype=torch.float,
+                        ),
+                    ]
                 )
         return wav
 
@@ -526,18 +571,25 @@ class TTSDataset(Dataset):
         sample = self.data[index]
 
         # Let's keep audio name and all internal directories in rel_audio_path_as_text_id to avoid any collisions
-        rel_audio_path = Path(sample["audio_filepath"]).relative_to(self.base_data_dir).with_suffix("")
+        rel_audio_path = (
+            Path(sample["audio_filepath"])
+            .relative_to(self.base_data_dir)
+            .with_suffix("")
+        )
         rel_audio_path_as_text_id = str(rel_audio_path).replace("/", "_")
 
         if (
             self.segment_max_duration is not None
-            and 'duration' in sample
-            and sample['duration'] > self.segment_max_duration
+            and "duration" in sample
+            and sample["duration"] > self.segment_max_duration
         ):
             # this case has been added for segmenting audio for speaker verification task of SSLDisentangler
             n_segments = int(self.segment_max_duration * self.sample_rate)
             features = AudioSegment.segment_from_file(
-                sample["audio_filepath"], target_sr=self.sample_rate, n_segments=n_segments, trim=self.trim
+                sample["audio_filepath"],
+                target_sr=self.sample_rate,
+                n_segments=n_segments,
+                trim=self.trim,
             )
             audio_shifted = None
 
@@ -563,7 +615,9 @@ class TTSDataset(Dataset):
             audio_shifted = None
             if self.pitch_augment:
                 audio_shifted = self.pitch_shift(
-                    features.cpu().detach().numpy(), self.sample_rate, rel_audio_path_as_text_id
+                    features.cpu().detach().numpy(),
+                    self.sample_rate,
+                    rel_audio_path_as_text_id,
                 )
                 assert audio_shifted.size() == features.size(), "{} != {}".format(
                     audio_shifted.size(), features.size()
@@ -608,9 +662,13 @@ class TTSDataset(Dataset):
         if AlignPriorMatrix in self.sup_data_types_set:
             mel_len = self.get_log_mel(audio).shape[2]
             if self.use_beta_binomial_interpolator:
-                align_prior_matrix = torch.from_numpy(self.beta_binomial_interpolator(mel_len, text_length.item()))
+                align_prior_matrix = torch.from_numpy(
+                    self.beta_binomial_interpolator(mel_len, text_length.item())
+                )
             else:
-                align_prior_matrix = torch.from_numpy(beta_binomial_prior_distribution(text_length, mel_len))
+                align_prior_matrix = torch.from_numpy(
+                    beta_binomial_prior_distribution(text_length, mel_len)
+                )
 
         non_exist_voiced_index = []
         my_var = locals()
@@ -619,9 +677,13 @@ class TTSDataset(Dataset):
                 voiced_folder = getattr(self, f"{voiced_item.name}_folder")
                 voiced_filepath = voiced_folder / f"{rel_audio_path_as_text_id}.pt"
                 if voiced_filepath.exists():
-                    my_var.__setitem__(voiced_item.name, torch.load(voiced_filepath).float())
+                    my_var.__setitem__(
+                        voiced_item.name, torch.load(voiced_filepath).float()
+                    )
                 else:
-                    non_exist_voiced_index.append((i, voiced_item.name, voiced_filepath))
+                    non_exist_voiced_index.append(
+                        (i, voiced_item.name, voiced_filepath)
+                    )
 
         if len(non_exist_voiced_index) != 0:
             voiced_tuple = librosa.pyin(
@@ -633,13 +695,15 @@ class TTSDataset(Dataset):
                 fill_na=0.0,
             )
             for (i, voiced_name, voiced_filepath) in non_exist_voiced_index:
-                my_var.__setitem__(voiced_name, torch.from_numpy(voiced_tuple[i]).float())
+                my_var.__setitem__(
+                    voiced_name, torch.from_numpy(voiced_tuple[i]).float()
+                )
                 torch.save(my_var.get(voiced_name), voiced_filepath)
 
-        pitch = my_var.get('pitch', None)
-        pitch_length = my_var.get('pitch_length', None)
-        voiced_mask = my_var.get('voiced_mask', None)
-        p_voiced = my_var.get('p_voiced', None)
+        pitch = my_var.get("pitch", None)
+        pitch_length = my_var.get("pitch_length", None)
+        voiced_mask = my_var.get("voiced_mask", None)
+        p_voiced = my_var.get("p_voiced", None)
 
         # normalize pitch if requested.
         if pitch is not None:
@@ -649,7 +713,10 @@ class TTSDataset(Dataset):
                     sample_pitch_mean = self.pitch_mean
                     sample_pitch_std = self.pitch_std
                 elif self.pitch_stats:
-                    if "speaker_id" in sample and str(sample["speaker_id"]) in self.pitch_stats:
+                    if (
+                        "speaker_id" in sample
+                        and str(sample["speaker_id"]) in self.pitch_stats
+                    ):
                         pitch_stats = self.pitch_stats[str(sample["speaker_id"])]
                     elif "default" in self.pitch_stats:
                         pitch_stats = self.pitch_stats["default"]
@@ -661,7 +728,9 @@ class TTSDataset(Dataset):
                     raise ValueError(f"Missing statistics for pitch normalization.")
 
                 pitch -= sample_pitch_mean
-                pitch[pitch == -sample_pitch_mean] = 0.0  # Zero out values that were previously zero
+                pitch[
+                    pitch == -sample_pitch_mean
+                ] = 0.0  # Zero out values that were previously zero
                 pitch /= sample_pitch_std
 
         # Load energy if needed
@@ -737,10 +806,20 @@ class TTSDataset(Dataset):
 
         max_audio_len = max(audio_lengths).item()
         max_tokens_len = max(tokens_lengths).item()
-        max_log_mel_len = max(log_mel_lengths) if LogMel in self.sup_data_types_set else None
-        max_durations_len = max([len(i) for i in durations_list]) if Durations in self.sup_data_types_set else None
-        max_pitches_len = max(pitches_lengths).item() if Pitch in self.sup_data_types_set else None
-        max_energies_len = max(energies_lengths).item() if Energy in self.sup_data_types_set else None
+        max_log_mel_len = (
+            max(log_mel_lengths) if LogMel in self.sup_data_types_set else None
+        )
+        max_durations_len = (
+            max([len(i) for i in durations_list])
+            if Durations in self.sup_data_types_set
+            else None
+        )
+        max_pitches_len = (
+            max(pitches_lengths).item() if Pitch in self.sup_data_types_set else None
+        )
+        max_energies_len = (
+            max(energies_lengths).item() if Energy in self.sup_data_types_set else None
+        )
 
         if LogMel in self.sup_data_types_set:
             log_mel_pad = torch.finfo(batch[0][4].dtype).tiny
@@ -801,18 +880,31 @@ class TTSDataset(Dataset):
             audio = general_padding(audio, audio_len.item(), max_audio_len)
             audios.append(audio)
 
-            token = general_padding(token, token_len.item(), max_tokens_len, pad_value=self.text_tokenizer_pad_id)
+            token = general_padding(
+                token,
+                token_len.item(),
+                max_tokens_len,
+                pad_value=self.text_tokenizer_pad_id,
+            )
             tokens.append(token)
 
             if audio_shifted is not None:
-                audio_shifted = general_padding(audio_shifted, audio_len.item(), max_audio_len)
+                audio_shifted = general_padding(
+                    audio_shifted, audio_len.item(), max_audio_len
+                )
                 audios_shifted.append(audio_shifted)
 
             if LogMel in self.sup_data_types_set:
-                log_mels.append(general_padding(log_mel, log_mel_len, max_log_mel_len, pad_value=log_mel_pad))
+                log_mels.append(
+                    general_padding(
+                        log_mel, log_mel_len, max_log_mel_len, pad_value=log_mel_pad
+                    )
+                )
 
             if Durations in self.sup_data_types_set:
-                durations_list.append(general_padding(durations, len(durations), max_durations_len))
+                durations_list.append(
+                    general_padding(durations, len(durations), max_durations_len)
+                )
 
             if AlignPriorMatrix in self.sup_data_types_set:
                 align_prior_matrices[
@@ -820,16 +912,24 @@ class TTSDataset(Dataset):
                 ] = align_prior_matrix
 
             if Pitch in self.sup_data_types_set:
-                pitches.append(general_padding(pitch, pitch_length.item(), max_pitches_len))
+                pitches.append(
+                    general_padding(pitch, pitch_length.item(), max_pitches_len)
+                )
 
             if Voiced_mask in self.sup_data_types_set:
-                voiced_masks.append(general_padding(voiced_mask, pitch_length.item(), max_pitches_len))
+                voiced_masks.append(
+                    general_padding(voiced_mask, pitch_length.item(), max_pitches_len)
+                )
 
             if P_voiced in self.sup_data_types_set:
-                p_voiceds.append(general_padding(p_voiced, pitch_length.item(), max_pitches_len))
+                p_voiceds.append(
+                    general_padding(p_voiced, pitch_length.item(), max_pitches_len)
+                )
 
             if Energy in self.sup_data_types_set:
-                energies.append(general_padding(energy, energy_length.item(), max_energies_len))
+                energies.append(
+                    general_padding(energy, energy_length.item(), max_energies_len)
+                )
 
             if SpeakerID in self.sup_data_types_set:
                 speaker_ids.append(speaker_id)
@@ -839,18 +939,40 @@ class TTSDataset(Dataset):
             "audio_lens": torch.stack(audio_lengths),
             "text": torch.stack(tokens),
             "text_lens": torch.stack(tokens_lengths),
-            "log_mel": torch.stack(log_mels) if LogMel in self.sup_data_types_set else None,
-            "log_mel_lens": torch.stack(log_mel_lengths) if LogMel in self.sup_data_types_set else None,
-            "durations": torch.stack(durations_list) if Durations in self.sup_data_types_set else None,
-            "align_prior_matrix": align_prior_matrices if AlignPriorMatrix in self.sup_data_types_set else None,
+            "log_mel": torch.stack(log_mels)
+            if LogMel in self.sup_data_types_set
+            else None,
+            "log_mel_lens": torch.stack(log_mel_lengths)
+            if LogMel in self.sup_data_types_set
+            else None,
+            "durations": torch.stack(durations_list)
+            if Durations in self.sup_data_types_set
+            else None,
+            "align_prior_matrix": align_prior_matrices
+            if AlignPriorMatrix in self.sup_data_types_set
+            else None,
             "pitch": torch.stack(pitches) if Pitch in self.sup_data_types_set else None,
-            "pitch_lens": torch.stack(pitches_lengths) if Pitch in self.sup_data_types_set else None,
-            "energy": torch.stack(energies) if Energy in self.sup_data_types_set else None,
-            "energy_lens": torch.stack(energies_lengths) if Energy in self.sup_data_types_set else None,
-            "speaker_id": torch.stack(speaker_ids) if SpeakerID in self.sup_data_types_set else None,
-            "voiced_mask": torch.stack(voiced_masks) if Voiced_mask in self.sup_data_types_set else None,
-            "p_voiced": torch.stack(p_voiceds) if P_voiced in self.sup_data_types_set else None,
-            "audio_shifted": torch.stack(audios_shifted) if audio_shifted is not None else None,
+            "pitch_lens": torch.stack(pitches_lengths)
+            if Pitch in self.sup_data_types_set
+            else None,
+            "energy": torch.stack(energies)
+            if Energy in self.sup_data_types_set
+            else None,
+            "energy_lens": torch.stack(energies_lengths)
+            if Energy in self.sup_data_types_set
+            else None,
+            "speaker_id": torch.stack(speaker_ids)
+            if SpeakerID in self.sup_data_types_set
+            else None,
+            "voiced_mask": torch.stack(voiced_masks)
+            if Voiced_mask in self.sup_data_types_set
+            else None,
+            "p_voiced": torch.stack(p_voiceds)
+            if P_voiced in self.sup_data_types_set
+            else None,
+            "audio_shifted": torch.stack(audios_shifted)
+            if audio_shifted is not None
+            else None,
         }
 
         return data_dict
@@ -866,22 +988,28 @@ class MixerTTSXDataset(TTSDataset):
         super().__init__(**kwargs)
 
     def _albert(self):
-        from transformers import AlbertTokenizer  # noqa pylint: disable=import-outside-toplevel
+        from transformers import (
+            AlbertTokenizer,
+        )  # noqa pylint: disable=import-outside-toplevel
 
-        self.lm_model_tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
-        self.lm_padding_value = self.lm_model_tokenizer._convert_token_to_id('<pad>')
-        space_value = self.lm_model_tokenizer._convert_token_to_id('▁')
+        self.lm_model_tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
+        self.lm_padding_value = self.lm_model_tokenizer._convert_token_to_id("<pad>")
+        space_value = self.lm_model_tokenizer._convert_token_to_id("▁")
 
         self.id2lm_tokens = {}
         for i, d in enumerate(self.data):
             normalized_text = d["normalized_text"]
 
-            assert isinstance(self.text_tokenizer, EnglishPhonemesTokenizer) or isinstance(
-                self.text_tokenizer, EnglishCharsTokenizer
+            assert isinstance(
+                self.text_tokenizer, EnglishPhonemesTokenizer
+            ) or isinstance(self.text_tokenizer, EnglishCharsTokenizer)
+            preprocess_text_as_tts_input = self.text_tokenizer.text_preprocessing_func(
+                normalized_text
             )
-            preprocess_text_as_tts_input = self.text_tokenizer.text_preprocessing_func(normalized_text)
 
-            lm_tokens_as_ids = self.lm_model_tokenizer.encode(preprocess_text_as_tts_input, add_special_tokens=False)
+            lm_tokens_as_ids = self.lm_model_tokenizer.encode(
+                preprocess_text_as_tts_input, add_special_tokens=False
+            )
 
             if self.text_tokenizer.pad_with_space:
                 lm_tokens_as_ids = [space_value] + lm_tokens_as_ids + [space_value]
@@ -889,7 +1017,7 @@ class MixerTTSXDataset(TTSDataset):
             self.id2lm_tokens[i] = lm_tokens_as_ids
 
     def add_lm_tokens(self, **kwargs):
-        lm_model = kwargs.pop('lm_model')
+        lm_model = kwargs.pop("lm_model")
 
         if lm_model == "albert":
             self._albert()
@@ -949,7 +1077,10 @@ class MixerTTSXDataset(TTSDataset):
 
         if LMTokens in self.sup_data_types_set:
             lm_tokens = torch.full(
-                (len(lm_tokens_list), max([lm_tokens.shape[0] for lm_tokens in lm_tokens_list])),
+                (
+                    len(lm_tokens_list),
+                    max([lm_tokens.shape[0] for lm_tokens in lm_tokens_list]),
+                ),
                 fill_value=self.lm_padding_value,
             )
             for i, lm_tokens_i in enumerate(lm_tokens_list):
@@ -1004,10 +1135,14 @@ class VocoderDataset(Dataset):
 
         if load_precomputed_mel:
             if hop_length is None:
-                raise ValueError("hop_length must be specified when load_precomputed_mel is True")
+                raise ValueError(
+                    "hop_length must be specified when load_precomputed_mel is True"
+                )
 
             if n_segments is None:
-                raise ValueError("n_segments must be specified when load_precomputed_mel is True")
+                raise ValueError(
+                    "n_segments must be specified when load_precomputed_mel is True"
+                )
 
         # Initialize and read manifest file(s), filter out data by duration and ignore_file
         if isinstance(manifest_filepath, str):
@@ -1017,7 +1152,7 @@ class VocoderDataset(Dataset):
         data = []
         total_duration = 0
         for manifest_file in self.manifest_filepath:
-            with open(Path(manifest_file).expanduser(), 'r') as f:
+            with open(Path(manifest_file).expanduser(), "r") as f:
                 logging.info(f"Loading dataset from {manifest_file}.")
                 for line in tqdm(f):
                     item = json.loads(line)
@@ -1027,7 +1162,9 @@ class VocoderDataset(Dataset):
 
                     file_info = {
                         "audio_filepath": item["audio_filepath"],
-                        "mel_filepath": item["mel_filepath"] if "mel_filepath" in item else None,
+                        "mel_filepath": item["mel_filepath"]
+                        if "mel_filepath" in item
+                        else None,
                         "duration": item["duration"] if "duration" in item else None,
                     }
 
@@ -1046,8 +1183,12 @@ class VocoderDataset(Dataset):
         if total_duration is not None:
             logging.info(f"Dataset contains {total_duration / 3600:.2f} hours.")
 
-        self.data = TTSDataset.filter_files(data, ignore_file, min_duration, max_duration, total_duration)
-        self.base_data_dir = get_base_dir([item["audio_filepath"] for item in self.data])
+        self.data = TTSDataset.filter_files(
+            data, ignore_file, min_duration, max_duration, total_duration
+        )
+        self.base_data_dir = get_base_dir(
+            [item["audio_filepath"] for item in self.data]
+        )
 
         # Initialize audio and mel related parameters
         self.load_precomputed_mel = load_precomputed_mel
@@ -1096,10 +1237,15 @@ class VocoderDataset(Dataset):
             if len(audio) >= self.n_segments:
                 start = random.randint(0, mel.shape[1] - frames - 1)
                 mel = mel[:, start : start + frames]
-                audio = audio[start * self.hop_length : (start + frames) * self.hop_length]
-            else:
+                audio = audio[
+                    start * self.hop_length : (start + frames) * self.hop_length
+                ]
+            
+            if len(audio) < self.n_segments:
                 mel = torch.nn.functional.pad(mel, (0, frames - mel.shape[1]))
-                audio = torch.nn.functional.pad(audio, (0, self.n_segments - len(audio)))
+                audio = torch.nn.functional.pad(
+                    audio, (0, self.n_segments - len(audio))
+                )
 
             return audio, len(audio), mel
 
@@ -1140,7 +1286,11 @@ class PairedRealFakeSpectrogramsDataset(Dataset):
         true_specs = torch.nn.utils.rnn.pad_sequence(true_specs, batch_first=True)
         lengths = torch.LongTensor(lengths)
 
-        return rearrange(pred_specs, "b l c -> b c l"), rearrange(true_specs, "b l c -> b c l"), lengths
+        return (
+            rearrange(pred_specs, "b l c -> b c l"),
+            rearrange(true_specs, "b l c -> b c l"),
+            lengths,
+        )
 
 
 class FastPitchSSLDataset(Dataset):
@@ -1160,7 +1310,9 @@ class FastPitchSSLDataset(Dataset):
         pitch_normalization: Optional[str] = None,
         sup_data_dir: Optional[Union[str, Path]] = None,
         speaker_stats_pitch_fp: Optional[Union[str, Path]] = None,
-        speaker_conditioning_type: Optional[str] = "per_sample",  # per_sample, mean, interpolate,
+        speaker_conditioning_type: Optional[
+            str
+        ] = "per_sample",  # per_sample, mean, interpolate,
     ):
 
         """Dataset used for training FastPitchModel_SSL model.
@@ -1200,7 +1352,12 @@ class FastPitchSSLDataset(Dataset):
                 mean: Speaker embedding for all utterances of a given speaker is the same and equal to the mean speaker embedding. 
                 interpolate: Interpolate b/w per_sample and mean speaker embedding.
         """
-        assert ssl_content_emb_type in ["probs", "embedding", "log_probs", "embedding_and_probs"]
+        assert ssl_content_emb_type in [
+            "probs",
+            "embedding",
+            "log_probs",
+            "embedding_and_probs",
+        ]
 
         if isinstance(manifest_filepath, str):
             manifest_filepath = [manifest_filepath]
@@ -1210,7 +1367,7 @@ class FastPitchSSLDataset(Dataset):
         total_duration = 0
         # TODO: Reuse code for reading manifests across all tts datasets
         for manifest_file in self.manifest_filepath:
-            with open(Path(manifest_file).expanduser(), 'r') as f:
+            with open(Path(manifest_file).expanduser(), "r") as f:
                 logging.info(f"Loading dataset from {manifest_file}.")
                 for line in tqdm(f):
                     item = json.loads(line)
@@ -1238,8 +1395,12 @@ class FastPitchSSLDataset(Dataset):
         if total_duration is not None:
             logging.info(f"Dataset contains {total_duration / 3600:.2f} hours.")
 
-        self.data = TTSDataset.filter_files(data, ignore_file, min_duration, max_duration, total_duration)
-        self.base_data_dir = get_base_dir([item["audio_filepath"] for item in self.data])
+        self.data = TTSDataset.filter_files(
+            data, ignore_file, min_duration, max_duration, total_duration
+        )
+        self.base_data_dir = get_base_dir(
+            [item["audio_filepath"] for item in self.data]
+        )
 
         self.featurizer = WaveformFeaturizer(sample_rate=sample_rate)
         self.sample_rate = sample_rate
@@ -1260,7 +1421,9 @@ class FastPitchSSLDataset(Dataset):
         if self.pitch_normalization == "speaker_wise":
             self.speaker_stats = {}
             if speaker_stats_pitch_fp is None:
-                speaker_stats_pitch_fp = os.path.join(sup_data_dir, "speaker_pitch_stats.json")
+                speaker_stats_pitch_fp = os.path.join(
+                    sup_data_dir, "speaker_pitch_stats.json"
+                )
 
             assert os.path.exists(
                 speaker_stats_pitch_fp
@@ -1279,21 +1442,34 @@ class FastPitchSSLDataset(Dataset):
         )
         audio_samples = features.samples
 
-        audio, audio_length = torch.tensor(audio_samples), torch.tensor(audio_samples.shape[0]).long()
+        audio, audio_length = (
+            torch.tensor(audio_samples),
+            torch.tensor(audio_samples.shape[0]).long(),
+        )
 
         # pad audio to a multiple of self.pad_multiple
         if audio.shape[0] % self.pad_multiple != 0:
             audio = torch.cat(
-                [audio, torch.zeros(self.pad_multiple - audio.shape[0] % self.pad_multiple, dtype=torch.float)]
+                [
+                    audio,
+                    torch.zeros(
+                        self.pad_multiple - audio.shape[0] % self.pad_multiple,
+                        dtype=torch.float,
+                    ),
+                ]
             )
             audio_length = torch.tensor(audio.shape[0]).long()
 
         return audio, audio_length
 
     def get_ssl_features(self, wav_text_id):
-        content_emb_fn = f"{self.ssl_content_emb_type}_content_embedding_{wav_text_id}.pt"
+        content_emb_fn = (
+            f"{self.ssl_content_emb_type}_content_embedding_{wav_text_id}.pt"
+        )
         speaker_emb_fn = f"speaker_embedding_{wav_text_id}.pt"
-        duration_fn = f"duration_embedding_{wav_text_id}.pt"  # embedding just for namesake
+        duration_fn = (
+            f"duration_embedding_{wav_text_id}.pt"  # embedding just for namesake
+        )
         content_emb_fp = os.path.join(self.sup_data_dir, content_emb_fn)
         speaker_emb_fp = os.path.join(self.sup_data_dir, speaker_emb_fn)
         duration_fp = os.path.join(self.sup_data_dir, duration_fn)
@@ -1354,18 +1530,26 @@ class FastPitchSSLDataset(Dataset):
             for key in row:
                 final_batch[key].append(row[key])
 
-        max_audio_len = max([_audio_len.item() for _audio_len in final_batch["audio_len"]])
+        max_audio_len = max(
+            [_audio_len.item() for _audio_len in final_batch["audio_len"]]
+        )
         max_mel_len = max([_mel_len.item() for _mel_len in final_batch["mel_len"]])
-        max_encoded_len = max([_encoded_len.item() for _encoded_len in final_batch["encoded_len"]])
+        max_encoded_len = max(
+            [_encoded_len.item() for _encoded_len in final_batch["encoded_len"]]
+        )
 
         audios_padded = []
         for audio in final_batch["audio"]:
-            audio_padded = torch.nn.functional.pad(audio, (0, max_audio_len - audio.size(0)), value=0)
+            audio_padded = torch.nn.functional.pad(
+                audio, (0, max_audio_len - audio.size(0)), value=0
+            )
             audios_padded.append(audio_padded)
 
         mels_padded = []
         for mel in final_batch["mel_spectrogram"]:
-            mel_padded = torch.nn.functional.pad(mel, (0, max_mel_len - mel.size(1)), value=0)
+            mel_padded = torch.nn.functional.pad(
+                mel, (0, max_mel_len - mel.size(1)), value=0
+            )
             mels_padded.append(mel_padded)
 
         pitch_contours_padded = []
@@ -1377,12 +1561,16 @@ class FastPitchSSLDataset(Dataset):
 
         content_embeddings_padded = []
         for encoded in final_batch["content_embedding"]:
-            encoded_padded = torch.nn.functional.pad(encoded, (0, max_encoded_len - encoded.size(1)), value=0)
+            encoded_padded = torch.nn.functional.pad(
+                encoded, (0, max_encoded_len - encoded.size(1)), value=0
+            )
             content_embeddings_padded.append(encoded_padded)
 
         durations_padded = []
         for duration in final_batch["duration"]:
-            duration_padded = torch.nn.functional.pad(duration, (0, max_encoded_len - duration.size(0)), value=0.0)
+            duration_padded = torch.nn.functional.pad(
+                duration, (0, max_encoded_len - duration.size(0)), value=0.0
+            )
             durations_padded.append(duration_padded)
 
         final_batch["audio"] = audios_padded
@@ -1398,7 +1586,11 @@ class FastPitchSSLDataset(Dataset):
 
     def __getitem__(self, index):
         sample = self.data[index]
-        rel_audio_path = Path(sample["audio_filepath"]).relative_to(self.base_data_dir).with_suffix("")
+        rel_audio_path = (
+            Path(sample["audio_filepath"])
+            .relative_to(self.base_data_dir)
+            .with_suffix("")
+        )
         rel_audio_path_as_text_id = str(rel_audio_path).replace("/", "_")
         speaker = torch.tensor(sample["speaker"]).long()
         dataset_id = torch.tensor(sample["dataset_id"]).long()
@@ -1409,14 +1601,23 @@ class FastPitchSSLDataset(Dataset):
         if self.pitch_conditioning:
             pitch_contour = self.get_pitch_contour(rel_audio_path_as_text_id)
 
-        content_embedding, speaker_embedding, encoded_len, duration = self.get_ssl_features(rel_audio_path_as_text_id)
+        (
+            content_embedding,
+            speaker_embedding,
+            encoded_len,
+            duration,
+        ) = self.get_ssl_features(rel_audio_path_as_text_id)
 
         if self.speaker_conditioning_type == "mean":
-            assert sample["speaker"] in self.mean_speaker_embeddings, "{} not in speaker emb".format(sample['speaker'])
+            assert (
+                sample["speaker"] in self.mean_speaker_embeddings
+            ), "{} not in speaker emb".format(sample["speaker"])
             speaker_embedding = self.mean_speaker_embeddings[sample["speaker"]]
 
         elif self.speaker_conditioning_type == "interpolate":
-            assert sample["speaker"] in self.mean_speaker_embeddings, "{} not in speaker emb".format(sample['speaker'])
+            assert (
+                sample["speaker"] in self.mean_speaker_embeddings
+            ), "{} not in speaker emb".format(sample["speaker"])
             e1 = self.mean_speaker_embeddings[sample["speaker"]]
             e2 = speaker_embedding
             interpolate_factor = np.random.uniform(0, 1)
@@ -1437,7 +1638,11 @@ class FastPitchSSLDataset(Dataset):
                     mean = self.speaker_stats[sample["speaker"]]["pitch_mean"]
                     std = self.speaker_stats[sample["speaker"]]["pitch_std"]
                     if np.isnan(mean) or np.isnan(std) or mean == 0 or std == 0:
-                        logging.warning("NaN found in pitch mean/std for speaker {}".format(sample["speaker"]))
+                        logging.warning(
+                            "NaN found in pitch mean/std for speaker {}".format(
+                                sample["speaker"]
+                            )
+                        )
                         mean = self.pitch_mean
                         std = self.pitch_std
                 elif self.pitch_normalization == "global":
@@ -1449,22 +1654,24 @@ class FastPitchSSLDataset(Dataset):
                 pitch_contour = pitch_contour / std
 
             if pitch_contour.dtype != torch.float32:
-                logging.warning("invalid pitch contour for {}".format(sample["audio_filepath"]))
+                logging.warning(
+                    "invalid pitch contour for {}".format(sample["audio_filepath"])
+                )
                 logging.warning("Setting pitch contour to 0")
                 pitch_contour = torch.zeros(mel_spectrogram.shape[1])
 
         item = {
-            'audio': audio,
-            'audio_len': audio_length,
-            'content_embedding': content_embedding,
-            'speaker_embedding': speaker_embedding,
-            'encoded_len': encoded_len,
-            'pitch_contour': pitch_contour,
-            'speaker': speaker,
-            'mel_spectrogram': mel_spectrogram,
-            'mel_len': mel_len,
-            'dataset_id': dataset_id,
-            'duration': duration,
+            "audio": audio,
+            "audio_len": audio_length,
+            "content_embedding": content_embedding,
+            "speaker_embedding": speaker_embedding,
+            "encoded_len": encoded_len,
+            "pitch_contour": pitch_contour,
+            "speaker": speaker,
+            "mel_spectrogram": mel_spectrogram,
+            "mel_len": mel_len,
+            "dataset_id": dataset_id,
+            "duration": duration,
         }
 
         return item
@@ -1483,7 +1690,15 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
     Ex) boundaries = [b1, b2, b3] -> any x s.t. length(x) <= b1 or length(x) > b3 are discarded.
     """
 
-    def __init__(self, dataset, batch_size, boundaries, num_replicas=None, rank=None, shuffle=True):
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        boundaries,
+        num_replicas=None,
+        rank=None,
+        shuffle=True,
+    ):
         super().__init__(dataset, num_replicas=num_replicas, rank=rank, shuffle=shuffle)
         self.lengths = dataset.lengths
         self.batch_size = batch_size
@@ -1510,7 +1725,9 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
         total_batch_size = self.num_replicas * self.batch_size
         for i in range(len(buckets)):
             len_bucket = len(buckets[i])
-            rem = (total_batch_size - (len_bucket % total_batch_size)) % total_batch_size
+            rem = (
+                total_batch_size - (len_bucket % total_batch_size)
+            ) % total_batch_size
             num_samples_per_bucket.append(len_bucket + rem)
         return buckets, num_samples_per_bucket
 
@@ -1535,14 +1752,23 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
 
             # add extra samples to make it evenly divisible
             rem = num_samples_bucket - len_bucket
-            ids_bucket = ids_bucket + ids_bucket * (rem // len_bucket) + ids_bucket[: (rem % len_bucket)]
+            ids_bucket = (
+                ids_bucket
+                + ids_bucket * (rem // len_bucket)
+                + ids_bucket[: (rem % len_bucket)]
+            )
 
             # subsample
             ids_bucket = ids_bucket[self.rank :: self.num_replicas]
 
             # batching
             for j in range(len(ids_bucket) // self.batch_size):
-                batch = [bucket[idx] for idx in ids_bucket[j * self.batch_size : (j + 1) * self.batch_size]]
+                batch = [
+                    bucket[idx]
+                    for idx in ids_bucket[
+                        j * self.batch_size : (j + 1) * self.batch_size
+                    ]
+                ]
                 batches.append(batch)
 
         if self.shuffle:

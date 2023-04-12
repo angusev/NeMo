@@ -151,6 +151,8 @@ class MemoryEfficientBlendableDataset(torch.utils.data.Dataset):
         """Visualize indices of blended dataset"""
 
         import matplotlib.pyplot as plt
+        import matplotlib
+        matplotlib.use('Agg') 
 
         plt.ion()
 

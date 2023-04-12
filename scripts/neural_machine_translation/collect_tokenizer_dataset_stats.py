@@ -19,6 +19,8 @@ import os
 
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('Agg') 
 
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_nmt_tokenizer
 

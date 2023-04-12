@@ -47,6 +47,8 @@ from typing import Optional, Tuple
 
 import librosa
 import matplotlib.pylab as plt
+import matplotlib
+matplotlib.use('Agg') 
 import numpy as np
 import torch
 from einops import rearrange

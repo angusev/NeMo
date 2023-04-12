@@ -21,6 +21,8 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 import h5py
 import librosa
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg') 
 import numpy as np
 import soundfile as sf
 import torch
